@@ -1,0 +1,62 @@
+/** Problema 9: Se dispone de dos grafos que representan la matriz de costes para viajes en un
+determinado país, pero por diferentes medios de transporte (tren y autobús, por
+ejemplo). Por supuesto ambos grafos tendrán el mismo número de nodos, N. Dados
+ambos grafos, una ciudad de origen, una ciudad de destino y el coste del taxi para
+cambiar de una estación a otra dentro de cualquier ciudad (se supone constante e igual
+para todas las ciudades), implementa un subprograma que calcule el camino y el coste
+mínimo para ir de la ciudad origen a la ciudad destino.*/
+
+#include <iostream>
+#include <algorithm>
+#include "../alg_grafo_E-S.h"
+#include "../alg_grafoPMC.h"
+
+using namespace std;
+
+template <typename tCoste>
+tCoste transbordoTaxi(const GrafoP<tCoste>& Tren, const GrafoP<tCoste>& Bus, typename GrafoP<tCoste>::vertice origen, typename GrafoP<tCoste>::vertice destino, tCoste taxi, vector<typename GrafoP<tCoste>::vertice>& camino1, vector<typename GrafoP<tCoste>::vertice>& camino2){
+
+    size_t n = Tren.numVert();
+    vector<tCoste> costesTren, costesBus;
+    GrafoP<tCoste> GT(2*n);
+
+    for(size_t i=0; i<GT.numVert(); i ++)
+        for(size_t j=0; j<GT.numVert(); j++){
+            //Primer cuadrante(lo rellenamos con los costes de ir en tren)
+            if(i < n && j < n)
+                GT[i][j] = Tren[i][j];
+            //Cuarto cuadrante (lo rellenamos con los costes de ir en autobus)
+            else if(i > n && j > n )
+                GT[i][j] = Bus[i - n][j - n];   //En el grafo del Bus los valores de i y j nunca van a ser los mismos
+            //El segundo y el tercer cuadrante los rellenaremos con los costes de los taxis
+                else if(i < n && j > n)
+                    if(abs(i - j) == n) //En el segundo cuadrante al resta i - j saldran valores negativos por eso usamos el valor abusoluto.
+                        GT[i][j] = taxi;
+                    else if(i > n && j < n)
+                        if(i - j == n)
+                            GT[i][j] = taxi;
+        }
+
+    //cout << GT << endl;
+    costesTren = Dijkstra(GT, origen, camino1);
+    costesBus = Dijkstra(GT, origen + n, camino2);  //Hacemos Dijkstra desde origen + n, porque es el punto en el supergrafo desde el que comienzan a salir los autobuses.
+
+    tCoste costeMin = min(min(costesTren[destino], costesTren[destino+n]), min(costesBus[destino], costesBus[destino+n]));
+    return costeMin;
+}
+
+int main(){
+
+    GrafoP<unsigned> tren("matriz_ej_9Tren.txt"), bus("matriz_ej_9Bus.txt");
+    vector<typename GrafoP<unsigned>::vertice> P1, P2;
+    typename GrafoP<unsigned>::vertice origen, destino;
+    unsigned taxi, costeMin;
+
+    taxi = 15;
+    origen = 0;
+    destino = 3;
+
+    costeMin = transbordoTaxi(tren, bus, origen, destino, taxi, P1, P2);
+
+    cout << "El coste minimo es: " << costeMin << endl;
+}

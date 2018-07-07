@@ -1,0 +1,90 @@
+/** Problema 10: Se dispone de tres grafos que representan la matriz de costes para viajes en un
+determinado país, pero por diferentes medios de transporte (tren, autobús y avión). Por
+supuesto los tres grafos tendrán el mismo número de nodos, N.
+Dados los siguientes datos:
+* los tres grafos,
+* una ciudad de origen,
+* una ciudad de destino,
+* el coste del taxi para cambiar, dentro de una ciudad, de la estación de tren a la
+de autobús o viceversa (taxi-tren-bus) y
+* el coste del taxi desde el aeropuerto a la estación de tren o la de autobús, o
+viceversa (taxi-aeropuerto-tren/bus)
+y asumiendo que ambos costes de taxi (distintos entre sí, son dos costes diferentes) son
+constantes e iguales para todas las ciudades, implementa un subprograma que calcule el
+camino y el coste mínimo para ir de la ciudad origen a la ciudad destino.*/
+
+#include <iostream>
+#include "../alg_grafo_E-S.h"
+#include "../alg_grafoPMC.h"
+
+using namespace std;
+
+template <typename tCoste>
+tCoste transbordoTriple(const GrafoP<tCoste>& Tren, const GrafoP<tCoste>& Autobus, const GrafoP<tCoste>& Avion,
+                        typename GrafoP<tCoste>::vertice origen, typename GrafoP<tCoste>::vertice destino,
+                        unsigned costeTaxi1, unsigned costeTaxi2, vector<typename GrafoP<tCoste>::vertice>& camino)
+{
+    size_t n = Tren.numVert();
+    GrafoP<tCoste> superGrafo(3*n);
+    vector<tCoste> costesMinTren;
+    vector<tCoste> costesMinAutobus;
+    vector<tCoste> costesMinAvion;
+    tCoste costeMin;
+
+    for(size_t i = 0; i < superGrafo.numVert(); i++)
+        for(size_t j = 0; j < superGrafo.numVert(); j++){
+            /** Primero vamos a rellenar los cuadrantes de los 3 grafos correspondientes a trenes, autobuses y aviones*/
+            //Trenes (1er cuadrante)
+            if(i < n && j < n)
+                superGrafo[i][j] = Tren[i][j];
+            //Autobuses (5º cuadrantes)
+            if((i >= n && j >= n) && (i < 2*n && j < 2*n))
+                superGrafo[i][j] = Autobus[i-n][j-n];
+            //Aviones (9º cuadrante)
+            if(i >= 2*n && j >= 2*n)
+                superGrafo[i][j] = Avion[i - 2*n][j - 2*n];
+
+            /** A continuación, rellenaremos los costes asociados a los taxis entre las estaciones de autobuses y las de trenes y vicecersa.*/
+            //2º cuadrante
+            if(i < n && (j >= n && j < 2*n))
+                if(i == j - n)  /** Con esto conseguimos rellenar sólo la diagonal del cuadrante con los costes de los taxs, ya que los taxis solo circularan por una misma ciudad, nunca entre ciudades y por ello el coste en esos vertices del cuadrante será infinito.*/
+                    superGrafo[i][j] = costeTaxi1;
+            //4º cuadrante
+            if((i >= n && i < 2*n) && j < n)
+                if(i == j - n)
+                    superGrafo[i][j] = costeTaxi1;
+
+            /** Por último, rellenaremos los costes de los taxis entre los aeropuertos y las estaciones de tren/bus y viceversa.*/
+            //Cuadrantes 3, 6, 7 y 8
+            if((i >= 2*n && j < 2*n) || (i < 2*n && j >= 2*n))
+                superGrafo[i][j] = costeTaxi2;  //He supuesto que los taxis de aeropuerto- estacion bus/tren son interurbanos
+        }                                       //por eso contemplo los viajes de taxis entre ciudades y relleno los cuadrantes enteros.
+
+        costesMinTren = Dijkstra(superGrafo, origen, camino);
+        costesMinAutobus = Dijkstra(superGrafo, origen+n, camino);
+        costesMinAvion = Dijkstra(superGrafo, origen+2*n, camino);
+
+        costeMin = min(min(costesMinTren[destino], costesMinAutobus[destino]), costesMinAvion[destino]);
+
+        return costeMin;
+}
+
+
+int main(){
+
+    GrafoP<unsigned> tren("matriz_ej_10Tren.txt"), autobus("matriz_ej_10Bus.txt"), avion("matriz_ej_10Avion.txt");
+    vector<typename GrafoP<unsigned>::vertice> P;
+    typename GrafoP<unsigned>::vertice origen = 0;
+    typename GrafoP<unsigned>::vertice destino = 3;
+    unsigned coste1 = 5;
+    unsigned coste2 = 10;
+    unsigned costeMin;
+
+    costeMin = transbordoTriple(tren, autobus, avion, origen, destino, coste1, coste2, P);
+    cout << "El camino minimo para ir desde la ciudad " << origen << " hasta la ciudad " << destino << " es:\n" << endl;
+
+    for(size_t i = 0; i < P[destino]; i++)
+        cout << P[i];
+
+    cout << "Y el coste minimo para realizar dicho camino teniendo en cuenta los 3 tipos de transbordos es de: " << costeMin << "euros." << endl;
+}
